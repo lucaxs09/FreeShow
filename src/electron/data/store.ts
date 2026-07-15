@@ -192,13 +192,14 @@ function getWritableConfigPath(previousLocation?: string | null, setup = false):
 
 // ----- SET STORE -----
 
-// store file, retry if failed
-export async function safeStoreSet(store: any, newData: any, key: string): Promise<void> {
+// store file, retry if failed. Returns whether the write succeeded, so callers that track
+// applied state (e.g. sync v2) can avoid marking data as persisted when it was not.
+export async function safeStoreSet(store: any, newData: any, key: string): Promise<boolean> {
     for (let attempt = 0; attempt < 3; attempt++) {
         try {
             store.store = newData
             await wait(100)
-            return
+            return true
         } catch (err: any) {
             const isLastAttempt = attempt === 2
             // Windows permission error, likely due to permission set to read-only
@@ -207,10 +208,11 @@ export async function safeStoreSet(store: any, newData: any, key: string): Promi
             } else {
                 console.error(`Failed to save ${key}:`, err)
                 sendToMain(ToMain.ALERT, `Failed to save ${key}. Please check file permissions or try running as administrator.`)
-                return
+                return false
             }
         }
     }
+    return false
 }
 
 // ----- GET STORE -----

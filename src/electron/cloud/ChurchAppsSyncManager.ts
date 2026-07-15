@@ -148,15 +148,27 @@ class ChurchAppsSyncManager {
     }
 
     async uploadData(teamId: string, filePath: string, fileName = "current.zip"): Promise<boolean> {
+        // get the token BEFORE reading the file (matches the pre-refactor behavior: no token → false, without touching the file)
         const presigned = await this.getWriteToken(teamId, fileName)
         if (!presigned?.url) return false
 
         const fileBuffer = await fs.promises.readFile(filePath)
-        const blob = new Blob([new Uint8Array(fileBuffer)], { type: ZIP_TYPE })
+        return await this.postToPresignedUrl(presigned, fileName, fileBuffer, ZIP_TYPE)
+    }
+
+    private async uploadFileBuffer(teamId: string, fileName: string, fileBuffer: Buffer, mimeType: string): Promise<boolean> {
+        const presigned = await this.getWriteToken(teamId, fileName)
+        if (!presigned?.url) return false
+
+        return await this.postToPresignedUrl(presigned, fileName, fileBuffer, mimeType)
+    }
+
+    private async postToPresignedUrl(presigned: any, fileName: string, fileBuffer: Buffer, mimeType: string): Promise<boolean> {
+        const blob = new Blob([new Uint8Array(fileBuffer)], { type: mimeType })
 
         const formData = new FormData()
         formData.append("acl", "public-read")
-        formData.append("Content-Type", ZIP_TYPE)
+        formData.append("Content-Type", mimeType)
 
         // Loop through all the presigned parameters returned and append them to this request
         for (const property in presigned.fields) formData.append(property, presigned.fields[property])
@@ -166,6 +178,52 @@ class ChurchAppsSyncManager {
         await axios.post(presigned.url, formData, { headers: { "Content-Type": "multipart/form-data" } })
 
         return true
+    }
+
+    // ----- sync v2 (per-device journal) transport: small JSON files with flat names -----
+
+    // GET a JSON file from the public content store, distinguishing "not found" (a valid state:
+    // the device/team simply hasn't published it yet) from transient errors (which must NEVER be
+    // treated as "no data" — see the v1 lesson where a failed GET triggered a full re-upload).
+    // 403 is mapped to "not_found" like v1's getData does: this S3 setup answers 403 (AccessDenied,
+    // no ListBucket) for missing keys, which we confirmed empirically. A transient 403 on an
+    // EXISTING file is therefore misread as missing — harmless for journals/items (their owner is
+    // the only writer, nothing is overwritten) and self-healing for the registry (it is merged
+    // with the locally cached copy, and every device re-adds itself on its next sync).
+    async getJsonFile(churchId: string, teamId: string, fileName: string): Promise<{ status: "ok"; data: unknown } | { status: "not_found" } | { status: "error" }> {
+        const cacheBuster = Date.now() + "" + Math.floor(Math.random() * 1000000)
+        const path = `/${churchId}/files/group/${teamId}/${fileName}?cacheBuster=${cacheBuster}`
+
+        return new Promise((resolve) => {
+            httpsRequest(CONTENT_HOSTNAME, path, "GET", {}, {}, (err: any, data?: unknown) => {
+                if (err) {
+                    if (err.statusCode === 404 || err.statusCode === 403) return resolve({ status: "not_found" })
+
+                    // likely offline: alert once (like v1), and report a transient error so the
+                    // caller never mistakes it for "no data"
+                    if (err.code === "ENOTFOUND") {
+                        ChurchAppsSyncManager.isOffline()
+                        return resolve({ status: "error" })
+                    }
+
+                    console.error("Sync v2: failed to fetch", fileName, err?.message || err)
+                    return resolve({ status: "error" })
+                }
+
+                // Reset offline alert state if successful
+                ChurchAppsSyncManager.offlineAlerted = false
+                return resolve({ status: "ok", data })
+            })
+        })
+    }
+
+    async uploadJsonFile(teamId: string, fileName: string, content: string): Promise<boolean> {
+        try {
+            return await this.uploadFileBuffer(teamId, fileName, Buffer.from(content, "utf8"), "application/json")
+        } catch (err) {
+            console.error("Sync v2: failed to upload", fileName, err)
+            return false
+        }
     }
 
     // BACKUP

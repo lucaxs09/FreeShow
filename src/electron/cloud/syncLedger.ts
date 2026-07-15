@@ -6,6 +6,12 @@
 // current deviceId, device count) is provided to the constructor, so the merge decisions can be
 // unit-tested in isolation. syncManager delegates to this instead of keeping the logic inline.
 
+// SYNCED_SETTINGS sub-keys that are item-collections: merged per-item via the created/deleted
+// ledger (like PROJECTS), so items unique to a device aren't lost and deletions propagate.
+// Other keys (e.g. drawSettings, scriptureSettings, deletedDefaults) are atomic settings and
+// keep the previous newest-file-wins behavior. Shared with the v2 sync adapters.
+export const SYNCED_SETTINGS_COLLECTIONS = ["categories", "overlayCategories", "templateCategories", "styles", "profiles", "timers", "variables", "audioStreams", "audioPlaylists", "scriptures", "groups", "midiIn", "emitters", "playerVideos", "videoMarkers", "mediaTags", "playerTags", "actionTags", "variableTags", "timerTags", "customizedIcons", "globalTags", "globalRegexes", "customMetadata", "effects"]
+
 export type Changes = {
     version: string
     devices: string[]

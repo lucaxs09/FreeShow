@@ -386,7 +386,7 @@ export const contentProviderData: Writable<{ [key in ContentProviderId]?: any }>
 export const obsData: Writable<{ enabled?: boolean; connected?: boolean; ip?: string; port?: number; password?: string }> = writable({}) // {}
 
 // CLOUD
-export const cloudSyncData: Writable<{ enabled?: boolean; id?: string; deviceName?: string; team?: { id: string; churchId: string; name: string; count?: number }; cloudMethod?: "merge" | "read_only" | "upload" | "replace" }> = writable({}) // {}
+export const cloudSyncData: Writable<{ enabled?: boolean; id?: string; deviceName?: string; team?: { id: string; churchId: string; name: string; count?: number }; cloudMethod?: "merge" | "read_only" | "upload" | "replace"; v2?: boolean }> = writable({}) // {}
 export const driveKeys: Writable<any> = writable({})
 export const driveData: Writable<any> = writable({ mainFolderId: null, disabled: false, initializeMethod: null, disableUpload: false })
 

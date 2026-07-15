@@ -320,6 +320,7 @@
 
             <!-- changing team directly without toggling "Enable sync" off/on -->
             <MaterialToggleSwitch label="cloud.read_only" title="cloud.readonly_tip" checked={$cloudSyncData.cloudMethod === "read_only"} defaultValue={false} on:change={(e) => updateCloudData("cloudMethod", e.detail ? "read_only" : "merge")} />
+            <MaterialToggleSwitch label="cloud.enable_sync_v2" title="cloud.enable_sync_v2_tip" checked={$cloudSyncData.v2 === true} defaultValue={false} on:change={(e) => updateCloudData("v2", e.detail)} />
 
             <!-- Documents/FreeShow/Media -->
             <!-- This should only be needed if no custom media management is already existing -->

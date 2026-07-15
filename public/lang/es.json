@@ -917,6 +917,8 @@
         "read_only": "Sólo Lectura",
         "reconnect": "Reconectar",
         "enable_sync": "Habilitar sincronización",
+        "enable_sync_v2": "Activar sync v2 (experimental)",
+        "enable_sync_v2_tip": "Sync por journal por-dispositivo. Experimental, activalo solo en equipos que estés usando para probarlo.",
         "sync": "Sincronizar ahora",
         "change_team": "Cambiar de equipo",
         "choose_method_tip": "Ya existen datos en la nube. ¿Qué desea hacer?",

@@ -11,7 +11,8 @@ import { sendMain } from "../IPC/main"
 import { createFolder, deleteFile, deleteFolderAsync, doesPathExistAsync, getDataFolderPath, getFileStatsAsync, getTimePointString, loadShows, moveFileAsync, readFileAsync, readFolderAsync, writeFileAsync } from "../utils/files"
 import { clone, getMachineId } from "../utils/helpers"
 import { getChurchAppsSyncManager } from "./ChurchAppsSyncManager"
-import { SyncLedger, type Changes } from "./syncLedger"
+import { SYNCED_SETTINGS_COLLECTIONS, SyncLedger, type Changes } from "./syncLedger"
+import { isSyncV2Enabled, syncDataV2 } from "./v2/syncV2Manager"
 
 export type SyncProviderId = "churchApps"
 const getManager = {
@@ -64,18 +65,15 @@ const DEBUG_MODE = false && !isProd
 const EXTRACT_LOCATION = path.join(app.getPath("temp"), "freeshow-cloud")
 const MERGE_INDIVIDUAL = ["OVERLAYS", "PROJECTS", "STAGE", "TEMPLATES", "SYNCED_SETTINGS"] // "EVENTS", "THEMES"
 
-// SYNCED_SETTINGS sub-keys that are item-collections: merged per-item via the created/deleted
-// ledger (like PROJECTS), so items unique to a device aren't lost and deletions propagate.
-// Other keys (e.g. drawSettings, scriptureSettings, deletedDefaults) are atomic settings and
-// keep the previous newest-file-wins behavior.
-const SYNCED_SETTINGS_COLLECTIONS = ["categories", "overlayCategories", "templateCategories", "styles", "profiles", "timers", "variables", "audioStreams", "audioPlaylists", "scriptures", "groups", "midiIn", "emitters", "playerVideos", "videoMarkers", "mediaTags", "playerTags", "actionTags", "variableTags", "timerTags", "customizedIcons", "globalTags", "globalRegexes", "customMetadata", "effects"]
-
 const STALE_MERGE_GUARD_MS = 1000 * 60 * 60 * 24 * 30 // 30 days
 function getMergeGuardKey(data: { id: SyncProviderId; churchId: string; teamId: string }) {
     return `${data.id}:${data.churchId}:${data.teamId}`
 }
 
 export async function syncData(data: { id: SyncProviderId; churchId: string; teamId: string; method: "merge" | "read_only" | "upload" | "replace" }) {
+    // sync v2 (per-device journal) is strictly opt-in: nothing changes unless the user enabled it
+    if (isSyncV2Enabled()) return await syncDataV2(data)
+
     let readOnly = data.method === "read_only" || data.method === "replace" // never write to cloud
     const changedFiles: string[] = [] // WIP write changes
     let guardCloudModifiedAt = 0

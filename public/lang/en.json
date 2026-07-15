@@ -921,6 +921,8 @@
         "read_only": "Read-only",
         "reconnect": "Reconnect",
         "enable_sync": "Enable sync",
+        "enable_sync_v2": "Enable sync v2 (experimental)",
+        "enable_sync_v2_tip": "Per-device journal sync. Experimental, only enable on devices you're using to test this.",
         "sync": "Sync now",
         "change_team": "Change team",
         "choose_method_tip": "There is existing data in the cloud. What would you like to do?",
